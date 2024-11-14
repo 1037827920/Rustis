@@ -1,11 +1,14 @@
+//! Connection结构体，用于从远程peer发送和向远程peer接收Frame
+
 use std::io::Cursor;
 
 use bytes::{Buf, BytesMut};
 use mini_redis::{frame::Error::Incomplete, Frame, Result};
 use tokio::{io::{self, AsyncReadExt, AsyncWriteExt, BufWriter}, net::TcpStream};
 
-/// 用于从远程对等待方发送和接收Frame，Connection的目的是在底层的TcpStream上读取和写入帧
-struct Connection {
+/// 用于从远程peer发送和接收Frame，Connection的目的是在底层的TcpStream上读取和写入帧
+#[derive(Debug)]
+pub struct Connection {
     /// BufWriter，当write方法被调用时，不会直接写入到socket，而是先写入到缓冲区中，
     /// 当缓冲区填满时，会自动刷新到内部的socket中，然后再将缓冲区清空
     /// 这样做的目的是为了减少系统调用的次数，提高性能
