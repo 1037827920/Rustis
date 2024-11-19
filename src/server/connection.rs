@@ -3,8 +3,9 @@
 use std::io::Cursor;
 
 use bytes::{Buf, BytesMut};
-use mini_redis::{frame::Error::Incomplete, Frame, Result};
 use tokio::{io::{self, AsyncReadExt, AsyncWriteExt, BufWriter}, net::TcpStream};
+
+use crate::networking::frame::Frame;
 
 /// 用于从远程peer发送和接收Frame，Connection的目的是在底层的TcpStream上读取和写入帧
 #[derive(Debug)]

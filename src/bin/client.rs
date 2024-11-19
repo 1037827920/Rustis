@@ -1,88 +1,89 @@
 
-use mini_redis::client;
-use tokio::sync::{mpsc, oneshot};
+use core::str;
+use std::collections::btree_map::Keys;
+
+use clap::{Parser, Subcommand};
+use mini_redis::client::Client;
+use rust_redis::DEFAULT_PORT;
 use bytes::Bytes;
 
-
 #[tokio::main]
-async fn main() {
-    // 创建一个容量为32的新channel（多生产者，单消费者
-    let (tx0, mut rx) = mpsc::channel(32);
+async fn main() -> rust_redis::Result<()> {
+    // 初始化日志系统
+    set_up_subcriber()?;
 
-    // 通过clone发送方完成多个任务的发送
-    let tx1 = tx0.clone();
+    // 解析命令行参数
+    let cli = Cli::parse();
 
-    // 管理客户端资源的专用任务
-    let manager = tokio::spawn(async move {
-        // 建立到服务器的连接
-        let mut client = client::connect("localhost:6379").await.unwrap();
+    // 获取远程连接地址以及端口
+    let addr = format!("{}:{}", cli.host, cli.port);
 
-        // 开始接收消息
-        while let Some(cmd) = rx.recv().await {
-            use Command::*;
+    // 创建一个redis客户端
+    let mut client = Client::new(&addr).await?;
 
-            match cmd {
-                Get { key , response} => {
-                    let res = client.get(&key).await;
-                    // 需要.await，因为oneshot总是会立即失败或成功，不需要任何形式的等待
-                    let _  = response.send(res);
-                }
-                Set { key, value , response} => {
-                    let res = client.set(&key, value).await;
-                    let _ = response.send(res);
-                }
+    // 处理请求命令
+    match cli.cmd {
+        Command::Ping { msg } => {
+            let value = client.ping(msg).await?;
+            if let Ok(string) = str::from_utf8(&value) {
+                println!("\"{}\"", string);
+            } else {
+                println!("{:?}", value);
             }
         }
-    });
+        Command::Get { key  } => {
+            if let Some(value) = client.get(&key).await? {
+                if let Ok(string) = str::from_utf8(&value) {
+                    println!("\"{}\"", string);
+                } else {
+                    println!("{:?}", value);
+                }
+            } else {
+                println!("nil");
+            }
+        }
+        Command::Set { key, value } => {
+            client.set(&key, value).await?;
+            println!("OK");
+        }
+    }
 
-    let t1 = tokio::spawn(async move {
-        let (response_tx, response_rx) = oneshot::channel();
-        let cmd = Command::Get { 
-            key: "foo".to_string(),
-            response: response_tx,
-        };
-
-        // 发送GET请求
-        tx0.send(cmd).await.unwrap();
-
-        // 等待响应
-        let response = response_rx.await;
-        println!("GET foo: {:?}", response);
-    });
-
-    let t2 = tokio::spawn(async move {
-        let (response_tx, response_rx) = oneshot::channel();
-        let cmd = Command::Set {
-            key: "foo".to_string(),
-            value: "bar".into(),
-            response: response_tx,
-        };
-
-        // 发送SET请求
-        tx1.send(cmd).await.unwrap();
-
-        // 等待响应
-        let response = response_rx.await;
-        println!("SET foo: {:?}", response);
-    });
-
-    t1.await.unwrap();
-    t2.await.unwrap();
-    manager.await.unwrap();
+    Ok(())
 }
 
-// 为了避免跟mpsc::Sender冲突，将其别名为Responder
-type Responder<T> = oneshot::Sender<mini_redis::Result<T>>;
+fn set_up_subcriber() -> rust_redis::Result<()> {
+    tracing_subscriber::fmt::try_init()
+}
 
-#[derive(Debug)]
-pub enum Command {
-    Get { 
-        key: String,
-        response: Responder<Option<Bytes>>,
+#[derive(Parser, Debug)]
+#[command(name = "rust-redis-client", version, author, about = "rust redis client")]
+struct Cli {
+    #[clap(subcommand)]
+    cmd: Command,
+
+    #[arg(id = "hostname", long, default_value = "127.0.0.1")]
+    host: String,
+
+    #[arg(long, default_value = DEFAULT_PORT)]
+    port: u16,
+}
+
+#[derive(Subcommand, Debug)]
+enum Command {
+    Ping {
+        /// 给ping的消息
+        msg: Option<Bytes>,
     },
-    Set {
+    /// 获取键值
+    Get {
+        /// 键
         key: String,
+    },
+    /// 设置键值
+    Set {
+        /// 键
+        key: String,
+        /// 值
         value: Bytes,
-        response: Responder<()>,
     },
 }
