@@ -1,4 +1,3 @@
-pub mod connection;
 mod handler;
 mod listener;
 mod shutdown;

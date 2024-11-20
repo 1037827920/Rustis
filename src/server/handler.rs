@@ -4,8 +4,9 @@ use tracing::{debug, instrument};
 use tokio::sync::mpsc;
 
 use crate::cmd::Command;
+use crate::networking::connection::Connection;
 
-use super::{connection::Connection, shutdown::Shutdown};
+use super::shutdown::Shutdown;
 
 // use crate::persistence::db::Db;
 

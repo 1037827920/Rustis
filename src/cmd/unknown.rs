@@ -2,7 +2,7 @@
 
 use tracing::debug;
 
-use crate::{ server::connection::Connection, networking::frame::Frame };
+use crate::networking::{connection::Connection, frame::Frame};
 
 #[derive(Debug)]
 pub(crate) struct Unknown {

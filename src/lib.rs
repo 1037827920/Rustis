@@ -1,8 +1,8 @@
-mod client;
+pub mod client;
 mod cmd;
-mod persistence;
-mod server;
 mod networking;
+mod persistence;
+pub mod server;
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
 pub type Result<T> = std::result::Result<T, Error>;

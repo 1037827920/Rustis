@@ -1,13 +1,15 @@
 //! Listener结构体的实现，监听来自客户端的连接
 
-
-use tokio::{net::{TcpListener, TcpStream}, sync::{broadcast, mpsc}, time::{self, Duration}};
+use tokio::{
+    net::{TcpListener, TcpStream},
+    sync::{broadcast, mpsc},
+    time::{self, Duration},
+};
 use tracing::{error, info};
 
-use crate::server::{connection::Connection, shutdown::Shutdown};
+use crate::{networking::connection::Connection, server::shutdown::Shutdown};
 
 use super::handler::Handler;
-
 
 /// 监听来自客户端连接
 pub(super) struct Listener {
@@ -21,10 +23,14 @@ pub(super) struct Listener {
 
 impl Listener {
     /// # new() 函数
-    /// 
+    ///
     /// 创建一个新的Listener实例
-    pub fn new(listener: TcpListener, shutdown_tx: broadcast::Sender<()>, shutdown_finish_tx: mpsc::Sender<()>) -> Self {
-        Self {  
+    pub fn new(
+        listener: TcpListener,
+        shutdown_tx: broadcast::Sender<()>,
+        shutdown_finish_tx: mpsc::Sender<()>,
+    ) -> Self {
+        Self {
             listener,
             shutdown_tx,
             shutdown_finish_tx,
@@ -72,15 +78,19 @@ impl Listener {
             // 尝试接受连接，获取socket
             let socket = self.accept().await?;
 
-            let mut handler = Handler::new(Connection::new(socket), Shutdown::new(self.shutdown_tx.subscribe()), self.shutdown_finish_tx.clone());
+            let mut handler = Handler::new(
+                Connection::new(socket),
+                Shutdown::new(self.shutdown_tx.subscribe()),
+                self.shutdown_finish_tx.clone(),
+            );
 
             // 生成一个任务来处理连接
-            tokio::spawn(async {
+            tokio::spawn(async move {
                 // 处理连接
                 if let Err(err) = handler.run().await {
                     error!(cause = ?err, "处理连接时发生错误");
                 }
-            })
+            });
         }
 
         Ok(())

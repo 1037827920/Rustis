@@ -1,16 +1,15 @@
 //! 解析数据帧
 
 use bytes::Bytes;
-use core::fmt;
-/// # Parse 结构体
-///
-/// 用于解析数据帧
-use std::{str, vec, fmt};
+use std::{fmt, str, vec};
 
 use super::frame::Frame;
 
 type Result<T> = std::result::Result<T, ParseError>;
 
+/// # Parse 结构体
+///
+/// 用于解析数据帧
 #[derive(Debug)]
 pub(crate) struct Parse {
     /// 数组帧迭代器

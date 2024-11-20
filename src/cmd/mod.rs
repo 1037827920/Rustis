@@ -1,8 +1,10 @@
+pub mod ping;
 mod set;
 mod unknown;
 
-use crate::{networking::{ parse::Parse, frame::Frame }, server::connection::Connection};
+use crate::networking::{connection::Connection, frame::Frame, parse::Parse};
 
+use ping::Ping;
 use set::Set;
 use unknown::Unknown;
 
@@ -43,8 +45,7 @@ impl Command {
     ///
     /// 返回命令的名称
     pub(crate) fn get_name(&self) -> &str {
-        match Self {
-            Command::Get(_) => "get",
+        match self {
             Command::Set(_) => "set",
             Command::Unknown(cmd) => cmd.get_name(),
         }
@@ -63,7 +64,7 @@ impl Command {
         // 模式匹配命令
         let cmd = match &cmd_name.as_str() {
             _ => {
-                return Ok(Command::Unknown(cmd_name));
+                return Ok(Command::Unknown(Unknown::new(cmd_name)));
             }
         };
 

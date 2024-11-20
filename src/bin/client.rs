@@ -3,8 +3,7 @@ use core::str;
 use std::collections::btree_map::Keys;
 
 use clap::{Parser, Subcommand};
-use mini_redis::client::Client;
-use rust_redis::DEFAULT_PORT;
+use rust_redis::{ DEFAULT_PORT, client::Client};
 use bytes::Bytes;
 
 #[tokio::main]
@@ -19,34 +18,23 @@ async fn main() -> rust_redis::Result<()> {
     let addr = format!("{}:{}", cli.host, cli.port);
 
     // 创建一个redis客户端
-    let mut client = Client::new(&addr).await?;
+    let mut client = Client::connect(&addr).await?;
 
     // 处理请求命令
-    match cli.cmd {
-        Command::Ping { msg } => {
-            let value = client.ping(msg).await?;
-            if let Ok(string) = str::from_utf8(&value) {
-                println!("\"{}\"", string);
-            } else {
-                println!("{:?}", value);
-            }
-        }
-        Command::Get { key  } => {
-            if let Some(value) = client.get(&key).await? {
-                if let Ok(string) = str::from_utf8(&value) {
-                    println!("\"{}\"", string);
-                } else {
-                    println!("{:?}", value);
-                }
-            } else {
-                println!("nil");
-            }
-        }
-        Command::Set { key, value } => {
-            client.set(&key, value).await?;
-            println!("OK");
-        }
-    }
+    // match cli.cmd {
+    //     Command::Ping { msg } => {
+    //         let value = client.ping(msg).await?;
+    //         if let Ok(string) = str::from_utf8(&value) {
+    //             println!("\"{}\"", string);
+    //         } else {
+    //             println!("{:?}", value);
+    //         }
+    //     }
+    //     Command::Set { key, value } => {
+    //         client.set(&key, value).await?;
+    //         println!("OK");
+    //     }
+    // }
 
     Ok(())
 }
@@ -64,7 +52,7 @@ struct Cli {
     #[arg(id = "hostname", long, default_value = "127.0.0.1")]
     host: String,
 
-    #[arg(long, default_value = DEFAULT_PORT)]
+    #[arg(long, default_value_t = DEFAULT_PORT)]
     port: u16,
 }
 
@@ -75,10 +63,10 @@ enum Command {
         msg: Option<Bytes>,
     },
     /// 获取键值
-    Get {
-        /// 键
-        key: String,
-    },
+    // Get {
+    //     /// 键
+    //     key: String,
+    // },
     /// 设置键值
     Set {
         /// 键
