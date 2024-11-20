@@ -5,7 +5,10 @@ use std::io::{Error, ErrorKind};
 use tokio::net::{TcpStream, ToSocketAddrs};
 use tracing::{debug, instrument};
 
-use crate::{networking::{connection::Connection, frame::Frame}, cmd::ping::Ping};
+use crate::{
+    cmd::ping::Ping,
+    networking::{connection::Connection, frame::Frame},
+};
 
 /// # Client 结构体
 ///
@@ -67,5 +70,53 @@ impl Client {
                 Err(error.into())
             }
         }
+    }
+}
+
+mod tests {
+
+    use super::*;
+    use crate::networking::frame;
+    use tokio::net::{TcpListener, TcpStream};
+
+    #[tokio::test]
+    async fn test_ping() -> crate::Result<()> {
+        // 创建一个TcpListener
+        let listener = TcpListener::bind("localhost:0").await?;
+        // local_addr用于获取socket绑定的本地地址
+        let addr = listener.local_addr()?;
+
+        // 创建一个任务来模拟服务器
+        let server = tokio::spawn(async move {
+            let (mut server_stream, _) = listener.accept().await.unwrap();
+            let mut connection = Connection::new(server_stream);
+
+            // 读取客户端发送的帧
+            if let Some(frame) = connection.read_frame().await.unwrap() {
+                match frame {
+                    Frame::Array(_) => {
+                        // 服务器响应PONG
+                        connection
+                            .write_frame(&Frame::Simple("PONG".to_string()))
+                            .await.unwrap();
+                    }
+                    _ => panic!("无效的帧类型"),
+                }
+            }
+        });
+
+        // 创建一个客户端来连接到服务器
+        let mut client = Client::connect(addr).await?;
+
+        // 发送ping命令
+        let reponse = client.ping(None).await?;
+
+        // 检查响应是否为PONG
+        assert_eq!(reponse, String::from("PONG"));
+
+        // 等待服务器任务结束
+        server.await?;
+
+        Ok(())
     }
 }
