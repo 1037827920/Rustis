@@ -98,7 +98,8 @@ mod tests {
                         // 服务器响应PONG
                         connection
                             .write_frame(&Frame::Simple("PONG".to_string()))
-                            .await.unwrap();
+                            .await
+                            .unwrap();
                     }
                     _ => panic!("无效的帧类型"),
                 }

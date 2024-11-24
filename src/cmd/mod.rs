@@ -1,3 +1,4 @@
+pub mod get;
 pub mod ping;
 mod set;
 mod unknown;

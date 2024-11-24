@@ -3,7 +3,7 @@
 use tokio::sync::broadcast;
 
 /// # 结构体功能
-/// 
+///
 /// 监听服务器关闭信号，最常见的通知各个部分关闭的方式就是使用一个广播channel，然后任务都持有Receiver，等待Sender发送关闭信号。
 #[derive(Debug)]
 pub struct Shutdown {
@@ -21,15 +21,16 @@ impl Shutdown {
         }
     }
 
-    pub fn is_shutdown(&self) -> bool{
+    pub fn is_shutdown(&self) -> bool {
         self.is_shutdown
     }
 
-    /// # 函数功能 
-    /// 
+    /// # 函数功能
+    ///
     /// 等待关闭信号
     pub async fn receiving(&mut self) {
-        if self.is_shutdown { // 如果is_shutdown为true，说明已经关闭了
+        if self.is_shutdown {
+            // 如果is_shutdown为true，说明已经关闭了
             return;
         }
 

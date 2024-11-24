@@ -1,10 +1,9 @@
-
 use core::str;
 use std::collections::btree_map::Keys;
 
-use clap::{Parser, Subcommand};
-use rust_redis::{ DEFAULT_PORT, client::Client};
 use bytes::Bytes;
+use clap::{Parser, Subcommand};
+use rust_redis::{client::Client, DEFAULT_PORT};
 
 #[tokio::main]
 async fn main() -> rust_redis::Result<()> {
@@ -44,7 +43,12 @@ fn set_up_subcriber() -> rust_redis::Result<()> {
 }
 
 #[derive(Parser, Debug)]
-#[command(name = "rust-redis-client", version, author, about = "rust redis client")]
+#[command(
+    name = "rust-redis-client",
+    version,
+    author,
+    about = "rust redis client"
+)]
 struct Cli {
     #[clap(subcommand)]
     cmd: Command,

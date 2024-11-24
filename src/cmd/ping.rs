@@ -3,7 +3,11 @@
 use bytes::Bytes;
 use tracing::debug;
 
-use crate::networking::{parse::{Parse, ParseError}, frame::Frame, connection::Connection};
+use crate::networking::{
+    connection::Connection,
+    frame::Frame,
+    parse::{Parse, ParseError},
+};
 
 #[derive(Debug, Default)]
 pub struct Ping {
@@ -19,23 +23,23 @@ impl Ping {
         Self { msg }
     }
 
-    /// # parse_frame() 函数
-    /// 
+    /// # parse_frames() 函数
+    ///
     /// 从数据帧中解析出一个Ping实例
-    /// 
+    ///
     /// # 语法
-    /// 
+    ///
     /// PING [message]
-    pub(crate) fn parse_frame(parse: &mut Parse) -> crate::Result<Ping> {
+    pub(crate) fn parse_frames(parse: &mut Parse) -> crate::Result<Ping> {
         match parse.next_bytes() {
             Ok(msg) => Ok(Ping::new(Some(msg))),
             Err(ParseError::EndOfStream) => Ok(Ping::default()),
-            Err(err) => Err(err.into()) 
+            Err(err) => Err(err.into()),
         }
     }
 
     /// # apply() 函数
-    /// 
+    ///
     /// 应用Ping命令，并将响应写入到Connection实例
     pub(crate) async fn apply(self, connection: &mut Connection) -> crate::Result<()> {
         let response = match self.msg {
@@ -50,9 +54,9 @@ impl Ping {
 
         Ok(())
     }
-    
+
     /// # into_frame() 函数
-    /// 
+    ///
     /// 在客户端中使用，用于将Ping命令编码到为一个数据帧发送到服务器
     pub(crate) fn into_frame(self) -> Frame {
         let mut frame = Frame::array();
@@ -61,7 +65,7 @@ impl Ping {
         if let Some(msg) = self.msg {
             frame.push_bulk(msg);
         }
-        
+
         frame
     }
 }

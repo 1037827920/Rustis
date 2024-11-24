@@ -1,7 +1,7 @@
 //! Handler结构体的实现，处理每个来自客户端的连接
 
-use tracing::{debug, instrument};
 use tokio::sync::mpsc;
+use tracing::{debug, instrument};
 
 use crate::cmd::Command;
 use crate::networking::connection::Connection;
@@ -27,9 +27,13 @@ pub(super) struct Handler {
 
 impl Handler {
     /// # new() 函数
-    /// 
+    ///
     /// 创建一个新的Handler实例
-    pub fn new(connection: Connection, shutdown: Shutdown, _shutdown_finish_tx: mpsc::Sender<()>) -> Self {
+    pub fn new(
+        connection: Connection,
+        shutdown: Shutdown,
+        _shutdown_finish_tx: mpsc::Sender<()>,
+    ) -> Self {
         Self {
             connection,
             shutdown,
