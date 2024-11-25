@@ -195,9 +195,6 @@ impl Connection {
 
 #[cfg(test)]
 mod tests {
-
-    use crate::networking::frame;
-
     use super::*;
     use bytes::Bytes;
     use tokio::{

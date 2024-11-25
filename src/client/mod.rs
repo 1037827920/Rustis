@@ -6,7 +6,7 @@ use tokio::net::{TcpStream, ToSocketAddrs};
 use tracing::{debug, instrument};
 
 use crate::{
-    cmd::ping::Ping,
+    cmd::{get::Get, ping::Ping},
     networking::{connection::Connection, frame::Frame},
 };
 
@@ -38,17 +38,39 @@ impl Client {
 
     /// # ping() 函数
     ///
-    /// 向服务器发送ping命令，如果没有提供参数就返回PONG，该命令常用于测试连接是否存活
+    /// 向服务器编码并发送ping命令，如果没有提供参数就返回PONG，该命令常用于测试连接是否存活
     #[instrument(skip(self))]
     pub async fn ping(&mut self, msg: Option<Bytes>) -> crate::Result<Bytes> {
         // 将Ping命令编码为数据帧，方便传输到服务器
         let frame = Ping::new(msg).into_frame();
         debug!(request = ?frame);
+        // 将帧写入connection中
         self.connection.write_frame(&frame).await?;
 
+        // 读取服务器的响应
         match self.read_response().await? {
             Frame::Simple(value) => Ok(value.into()),
             Frame::Bulk(value) => Ok(value),
+            frame => Err(frame.to_error()),
+        }
+    }
+
+    /// # get() 函数
+    ///
+    /// 向服务器编码并发送get命令，获取key的值
+    #[instrument(skip(self))]
+    pub async fn get(&mut self, key: &str) -> crate::Result<Option<Bytes>> {
+        // 将Get命令编码为数据库镇，方便传输到服务器
+        let frame = Get::new(key).into_frame();
+        debug!(request = ?frame);
+        // 将帧写入到连接中
+        self.connection.write_frame(&frame).await?;
+
+        // 读取服务器的响应
+        match self.read_response().await? {
+            Frame::Simple(value) => Ok(Some(value.into())),
+            Frame::Bulk(value) => Ok(Some(value)),
+            Frame::Null => Ok(None),
             frame => Err(frame.to_error()),
         }
     }
@@ -73,10 +95,10 @@ impl Client {
     }
 }
 
+#[cfg(test)]
 mod tests {
     use super::*;
-    use crate::networking::frame;
-    use tokio::net::{TcpListener, TcpStream};
+    use tokio::net::TcpListener;
 
     #[tokio::test]
     async fn test_ping() -> crate::Result<()> {
@@ -87,7 +109,7 @@ mod tests {
 
         // 创建一个任务来模拟服务器
         let server = tokio::spawn(async move {
-            let (mut server_stream, _) = listener.accept().await.unwrap();
+            let (server_stream, _) = listener.accept().await.unwrap();
             let mut connection = Connection::new(server_stream);
 
             // 读取客户端发送的帧
@@ -115,6 +137,54 @@ mod tests {
         assert_eq!(reponse, String::from("PONG"));
 
         // 等待服务器任务结束
+        server.await?;
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_get() -> crate::Result<()> {
+        // 创建一个TcpListener
+        let listener = TcpListener::bind("localhost:0").await?;
+        // local_addr用于获取socket绑定的本地地址
+        let addr = listener.local_addr()?;
+
+        // 创建一个任务来模拟服务器
+        let server = tokio::spawn(async move {
+            let (server_stream, _) = listener.accept().await.unwrap();
+            let mut connection = Connection::new(server_stream);
+
+            // 读取客户端发送的帧
+            if let Some(frame) = connection.read_frame().await.unwrap() {
+                match frame {
+                    Frame::Array(ref arr) if arr.len() == 2 => {
+                        // 检查命令是否为GET
+                        if let Frame::Bulk(ref cmd) = arr[0] {
+                            if cmd.as_ref() == b"get" {
+                                // 获取键名
+                                if let Frame::Bulk(ref key) = arr[1] {
+                                    // 模拟返回值
+                                    let value = Bytes::from("test_value");
+                                    // 服务器响应value
+                                    connection.write_frame(&Frame::Bulk(value)).await.unwrap();
+                                }
+                            }
+                        }
+                    }
+                    _ => panic!("无效的帧类型"),
+                }
+            }
+        });
+
+        // 创建一个客户端来连接到服务器
+        let mut client = Client::connect(addr).await?;
+
+        // 发送get命令
+        let key = "test_key";
+        let response = client.get(key).await?;
+
+        assert_eq!(response, Some(Bytes::from("test_value")));
+
         server.await?;
 
         Ok(())
