@@ -152,14 +152,19 @@ impl Database {
     /// # publish() 函数
     ///
     /// 将消息发布到channel，返回在channel上侦听的subscriber数量
-    pub(crate) fn publish(&self, key: &str, value: Bytes) -> usize {
+    ///
+    /// # 参数
+    ///
+    /// - channel: channel在pub_sub中的key
+    /// - message：要发送的消息
+    pub(crate) fn publish(&self, channel: &str, message: Bytes) -> usize {
         // 获取state锁
         let state = self.shared.state.lock().unwrap();
 
         state
             .pub_sub
-            .get(key)
-            .map(|tx| tx.send(value).unwrap_or(0))
+            .get(channel)
+            .map(|tx| tx.send(message).unwrap_or(0))
             .unwrap_or(0)
     }
 
@@ -313,4 +318,70 @@ async fn clean_expired_keys(shared: Arc<Shared>) {
     }
 
     debug!("清除过期键的后台任务已经被关闭");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_get_and_set() {
+        let db = Database::new();
+
+        // 设置一个键值对
+        let key = "test_key".to_string();
+        let value = Bytes::from("test_value");
+        // 调用set方法
+        db.set(key.clone(), value.clone(), None);
+
+        // 调用get方法
+        let result = db.get(&key);
+
+        assert_eq!(result, Some(value));
+    }
+
+    #[tokio::test]
+    async fn test_get_nonexistent_key() {
+        let db = Database::new();
+        let ret = db.get("nonexistent_key");
+        assert_eq!(ret, None);
+    }
+
+    #[tokio::test]
+    async fn test_subscribe_and_publish() {
+        let db = Database::new();
+
+        let channel = "test_channel".to_string();
+        let message = Bytes::from("Hello, channel");
+
+        // 订阅channel
+        let mut subscriber1 = db.subscribe(channel.clone());
+        let mut subscriber2 = db.subscribe(channel.clone());
+
+        // 发布消息到channle
+        let subscribers_number = db.publish(&channel, message.clone());
+
+        // 检查subscriber数量
+        assert_eq!(subscribers_number, 2);
+
+        // 验证第一个subcriber收到的消息
+        let received1 = subscriber1.recv().await.unwrap();
+        assert_eq!(received1, message);
+
+        // 验证第二个subscriber收到的消息
+        let received2 = subscriber2.recv().await.unwrap();
+        assert_eq!(received2, message);
+    }
+
+    #[tokio::test]
+    async fn test_publish_without_subscribers() {
+        let db = Database::new();
+
+        let channel = "test_channel".to_string();
+        let message = Bytes::from("No subscribers");
+
+        let subscribers_number = db.publish(&channel, message.clone());
+
+        assert_eq!(subscribers_number, 0);
+    }
 }

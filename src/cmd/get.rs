@@ -1,6 +1,6 @@
 use tracing::instrument;
 
-use crate::{networking::{connection::Connection, parse::Parse}, persistence::database::Database};
+use crate::{networking::{connection::Connection, frame::Frame, parse::Parse}, persistence::database::Database};
 
 /// # Get 结构体
 ///
@@ -46,5 +46,14 @@ impl Get {
     ///
     /// 应用Get命令，并将响应写入到Connection实例
     #[instrument(skip(self))]
-    pub(crate) async fn apply(self, db: &Database, connection: &mut Connection) {}
+    pub(crate) async fn apply(self, db: &Database, connection: &mut Connection) -> crate::Result<()> {
+        // 从database实例中获取value
+        let response = if let Some(value) = db.get(&self.key) {
+            Frame::Bulk(value)
+        } else {
+            Frame::Null
+        };
+
+        Ok(())
+    }
 }

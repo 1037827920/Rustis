@@ -74,7 +74,6 @@ impl Client {
 }
 
 mod tests {
-
     use super::*;
     use crate::networking::frame;
     use tokio::net::{TcpListener, TcpStream};
