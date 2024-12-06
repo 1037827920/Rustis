@@ -1,11 +1,11 @@
 //! 服务器运行命令的实现
 
 use clap::Parser;
-use rust_redis::{server::run, DEFAULT_PORT};
+use rustis::{server::run, DEFAULT_PORT};
 use tokio::{net::TcpListener, signal};
 
 #[tokio::main]
-async fn main() -> rust_redis::Result<()> {
+async fn main() -> rustis::Result<()> {
     set_up_subcriber()?;
 
     let cli = Cli::parse();
@@ -21,7 +21,7 @@ async fn main() -> rust_redis::Result<()> {
 }
 
 #[cfg(not(feature = "otel"))]
-fn set_up_subcriber() -> rust_redis::Result<()> {
+fn set_up_subcriber() -> rustis::Result<()> {
     tracing_subscriber::fmt::try_init()
 }
 

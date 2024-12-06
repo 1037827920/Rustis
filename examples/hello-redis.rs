@@ -1,4 +1,4 @@
-use rust_redis::{client, Result};
+use rustis::{client, Result};
 
 #[tokio::main]
 async fn main() -> Result<()> {

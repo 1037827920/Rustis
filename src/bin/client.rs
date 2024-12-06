@@ -3,10 +3,10 @@ use std::collections::btree_map::Keys;
 
 use bytes::Bytes;
 use clap::{Parser, Subcommand};
-use rust_redis::{client::Client, DEFAULT_PORT};
+use rustis::{client::Client, DEFAULT_PORT};
 
 #[tokio::main]
-async fn main() -> rust_redis::Result<()> {
+async fn main() -> rustis::Result<()> {
     // 初始化日志系统
     set_up_subcriber()?;
 
@@ -38,7 +38,7 @@ async fn main() -> rust_redis::Result<()> {
     Ok(())
 }
 
-fn set_up_subcriber() -> rust_redis::Result<()> {
+fn set_up_subcriber() -> rustis::Result<()> {
     tracing_subscriber::fmt::try_init()
 }
 
