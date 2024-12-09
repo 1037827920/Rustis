@@ -119,7 +119,7 @@ async fn main() -> rustis::Result<()> {
                             while let Some(msg) = subscriber.next_message().await? {
                                 println!(
                                     "got message from the channel: {}; message = {:?}",
-                                    msg.channel, msg.message
+                                    msg.channel, msg.content
                                 );
                             }
 

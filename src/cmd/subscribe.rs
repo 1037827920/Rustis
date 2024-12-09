@@ -81,7 +81,7 @@ impl Subscribe {
 
         loop {
             // 将需要订阅的channel添加到StreamMap中
-            for channel_name in &self.channels {
+            for channel_name in self.channels.drain(..) {
                 subscribe_to_channel(
                     channel_name.clone(),
                     &mut subscriptions,

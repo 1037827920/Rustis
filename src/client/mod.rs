@@ -232,6 +232,7 @@ impl Subscriber {
     ///
     /// 从订阅的channels中接收消息。
     /// None表示channels已经被关闭
+    #[instrument(skip(self))]
     pub async fn next_message(&mut self) -> crate::Result<Option<Message>> {
         match self.client.connection.read_frame().await? {
             Some(frame) => {
@@ -264,7 +265,7 @@ impl Subscriber {
     }
 
     /// # into_client() 函数
-    /// 
+    ///
     /// 从Subscriber对象中取回Client对象所有权
     pub fn into_client(self) -> Client {
         self.client
@@ -289,7 +290,7 @@ impl Subscriber {
     ///
     /// 取消订阅channels
     #[instrument(skip(self))]
-    pub(crate) async fn unsubscribe(&mut self, channels: &[String]) -> crate::Result<()> {
+    pub async fn unsubscribe(&mut self, channels: &[String]) -> crate::Result<()> {
         // 将unsubscribe命令编码为帧
         let frame = Unsubscribe::new(channels.to_vec()).code_unsubscribe_into_frame();
         debug!(request = ?frame);
@@ -341,12 +342,12 @@ impl Subscriber {
 #[derive(Debug)]
 pub struct Message {
     pub channel: String,
-    pub message: Bytes,
+    pub content: Bytes,
 }
 
 impl Message {
-    pub fn new(channel: String, message: Bytes) -> Self {
-        Self { channel, message }
+    pub fn new(channel: String, content: Bytes) -> Self {
+        Self { channel, content }
     }
 }
 
