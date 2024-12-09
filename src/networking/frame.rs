@@ -1,14 +1,9 @@
 //! 客户端和服务器之间通信的数据单元，符合RESP协议
 
 use bytes::{Buf, Bytes};
-use std::{
-    fmt::{self, format},
-    io::{Cursor, Read},
-    num::TryFromIntError,
-    string::FromUtf8Error,
-};
+use std::{fmt, io::Cursor, num::TryFromIntError, string::FromUtf8Error};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Frame {
     /// 简单字符串
     Simple(String),
@@ -188,6 +183,45 @@ impl Frame {
     /// 将Frame转换为Error类型
     pub(crate) fn to_error(&self) -> crate::Error {
         format!("不是预期的帧类型: {:?}", self).into()
+    }
+}
+
+impl PartialEq<&str> for Frame {
+    fn eq(&self, other: &&str) -> bool {
+        match self {
+            Frame::Simple(s) => s.eq(other),
+            Frame::Bulk(s) => s.eq(other),
+            _ => false,
+        }
+    }
+}
+
+impl fmt::Display for Frame {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        use std::str;
+
+        match self {
+            Frame::Simple(response) => response.fmt(fmt),
+            Frame::Error(msg) => write!(fmt, "error: {}", msg),
+            Frame::Integer(num) => num.fmt(fmt),
+            Frame::Bulk(msg) => match str::from_utf8(msg) {
+                Ok(string) => string.fmt(fmt),
+                Err(_) => write!(fmt, "{:?}", msg),
+            },
+            Frame::Null => "(nil)".fmt(fmt),
+            Frame::Array(parts) => {
+                for (i, part) in parts.iter().enumerate() {
+                    if i > 0 {
+                        // use space as the array element display separator
+                        write!(fmt, " ")?;
+                    }
+
+                    part.fmt(fmt)?;
+                }
+
+                Ok(())
+            }
+        }
     }
 }
 

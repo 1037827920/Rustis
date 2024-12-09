@@ -5,11 +5,14 @@ edition = "2021"
 
 [dependencies]
 tokio = { version = "1", features = ["full"] }
+tokio-stream = "0.1"
+async-stream = "0.3.0"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 bytes = "1"
 atoi = "2.0.0"
 clap = { version = "4.5", features = ["derive"] }
+futures = "0.3"
 
 [features]
 otel = []

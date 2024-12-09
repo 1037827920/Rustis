@@ -7,12 +7,17 @@ use tokio::{
 };
 use tracing::{error, info};
 
-use crate::{networking::connection::Connection, server::shutdown::Shutdown};
+use crate::{
+    networking::connection::Connection, persistence::database::DatabaseWrapper,
+    server::shutdown::Shutdown,
+};
 
 use super::handler::Handler;
 
 /// 监听来自客户端连接
 pub(super) struct Listener {
+    /// Database实例的包装器，是为了在实例被删除时，通过后天清除任务发出关闭的信号，允许有序地清理database
+    database_wrapper: DatabaseWrapper,
     /// TCP监听器
     listener: TcpListener,
     /// 关闭信号发送者
@@ -26,11 +31,13 @@ impl Listener {
     ///
     /// 创建一个新的Listener实例
     pub fn new(
+        database_wrapper: DatabaseWrapper,
         listener: TcpListener,
         shutdown_tx: broadcast::Sender<()>,
         shutdown_finish_tx: mpsc::Sender<()>,
     ) -> Self {
         Self {
+            database_wrapper,
             listener,
             shutdown_tx,
             shutdown_finish_tx,
@@ -79,6 +86,7 @@ impl Listener {
             let socket = self.accept().await?;
 
             let mut handler = Handler::new(
+                self.database_wrapper.database(),
                 Connection::new(socket),
                 Shutdown::new(self.shutdown_tx.subscribe()),
                 self.shutdown_finish_tx.clone(),
@@ -92,7 +100,5 @@ impl Listener {
                 }
             });
         }
-
-        Ok(())
     }
 }

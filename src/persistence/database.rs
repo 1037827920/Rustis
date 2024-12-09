@@ -11,17 +11,17 @@ use tokio::{
 };
 use tracing::debug;
 
-/// # DatabaseDropGuard 结构体
+/// # DatabaseWrapper 结构体
 ///
 /// 封装一个Database实例
-/// 当DatabaseDropGuard实例被销毁时，会自动关闭Database实例
+/// 当DatabaseWrapper实例被销毁时，会自动关闭Database实例
 /// 为啥不直接为Database实现Drop traitn呢？因为Database能够在多线程中被共享（通过Arc）
 /// 如果这样操作了，那可能当一个线程的Database实例被销毁时，其他线程还在使用这个实例，这样就会出现问题
-pub(crate) struct DatabaseDropGuard {
+pub(crate) struct DatabaseWrapper {
     database: Database,
 }
 
-impl DatabaseDropGuard {
+impl DatabaseWrapper {
     pub(crate) fn new() -> Self {
         Self {
             database: Database::new(),
@@ -36,7 +36,7 @@ impl DatabaseDropGuard {
     }
 }
 
-impl Drop for DatabaseDropGuard {
+impl Drop for DatabaseWrapper {
     fn drop(&mut self) {
         // 向database实例发送关闭信号
         self.database.shutdown_clean_task();

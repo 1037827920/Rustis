@@ -1,6 +1,6 @@
 mod handler;
 mod listener;
-mod shutdown;
+pub mod shutdown;
 
 use std::future::Future;
 use tokio::{
@@ -10,6 +10,8 @@ use tokio::{
 use tracing::{error, info};
 
 use listener::Listener;
+
+use crate::persistence::database::DatabaseWrapper;
 
 /// # run() 函数
 ///
@@ -23,7 +25,12 @@ pub async fn run(listener: TcpListener, shutdown: impl Future) {
     let (shutdown_finish_tx, mut shutdown_finish_rx) = mpsc::channel(1);
 
     // 初始化Listener
-    let mut server = Listener::new(listener, shutdown_tx, shutdown_finish_tx);
+    let mut server = Listener::new(
+        DatabaseWrapper::new(),
+        listener,
+        shutdown_tx,
+        shutdown_finish_tx,
+    );
 
     // 同时运行服务器和监听关闭信号
     tokio::select! {

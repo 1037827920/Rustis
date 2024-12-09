@@ -5,6 +5,7 @@ use tracing::{debug, instrument};
 
 use crate::cmd::Command;
 use crate::networking::connection::Connection;
+use crate::persistence::database::Database;
 
 use super::shutdown::Shutdown;
 
@@ -16,7 +17,7 @@ use super::shutdown::Shutdown;
 #[derive(Debug)]
 pub(super) struct Handler {
     /// 共享数据库
-    // db: Db,
+    database: Database,
     /// 连接
     connection: Connection,
     /// 监听服务器关闭信号
@@ -30,11 +31,13 @@ impl Handler {
     ///
     /// 创建一个新的Handler实例
     pub fn new(
+        database: Database,
         connection: Connection,
         shutdown: Shutdown,
         _shutdown_finish_tx: mpsc::Sender<()>,
     ) -> Self {
         Self {
+            database,
             connection,
             shutdown,
             _shutdown_finish_tx,
@@ -66,12 +69,13 @@ impl Handler {
                 None => return Ok(()), // 缓冲区已经没有数据了，直接返回
             };
 
-            let cmd = Command::parse_cmd_from_frame(frame)?;
+            let cmd = Command::decode_cmd_from_frame(frame)?;
 
             // ?表示用Debug trait打印出错误信息，而不是Display trait
             debug!(?cmd);
 
-            cmd.apply(&mut self.connection).await?;
+            cmd.apply(&self.database, &mut self.connection, &mut self.shutdown)
+                .await?;
         }
 
         Ok(())

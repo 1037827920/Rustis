@@ -1,3 +1,5 @@
+//! get命令实现
+
 use bytes::Bytes;
 use tracing::{debug, instrument};
 
@@ -32,19 +34,30 @@ impl Get {
     /// # key() 函数
     ///
     /// 获取键
+    #[allow(dead_code)]
     pub(crate) fn key(&self) -> &str {
         &self.key
     }
 
-    /// # parse_get_from_frame() 函数
+    /// # decode_get_from_frame() 函数
     ///
-    /// 从数据帧中解析出Get命令
-    pub(crate) fn parse_get_from_frame(parse: &mut Parse) -> crate::Result<Get> {
+    /// 将帧解码为get命令
+    pub(crate) fn decode_get_from_frame(parse: &mut Parse) -> crate::Result<Get> {
         // GET命令已经被消费，所以下一个是键
         let key = parse.next_string()?;
 
         Ok(Get::new(key))
     }
+
+    /// # code_get_into_frame() 函数
+    /// 
+    /// 将get命令编码为帧
+    pub(crate) fn code_get_into_frame(self) -> Frame {
+        let mut frame = Frame::array();
+        frame.push_bulk(Bytes::from("get".as_bytes()));
+        frame.push_bulk(Bytes::from(self.key.into_bytes()));
+        frame
+    } 
 
     /// # apply() 函数
     ///
@@ -68,16 +81,5 @@ impl Get {
         connection.write_frame(&response).await?;
 
         Ok(())
-    }
-
-    /// # into_frame() 函数
-    ///
-    /// 在客户端中使用，用于将Ping命令编码到为一个数据帧发送到服务器
-    pub(crate) fn into_frame(self) -> Frame {
-        let mut frame = Frame::array();
-        frame.push_bulk(Bytes::from("get".as_bytes()));
-        frame.push_bulk(Bytes::from(self.key.into_bytes()));
-
-        frame
     }
 }

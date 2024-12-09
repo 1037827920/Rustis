@@ -23,19 +23,27 @@ impl Ping {
         Self { msg }
     }
 
-    /// # parse_frames() 函数
+    /// # decode_ping_from_frame() 函数
     ///
-    /// 从数据帧中解析出一个Ping实例
-    ///
-    /// # 语法
-    ///
-    /// PING [message]
-    pub(crate) fn parse_frames(parse: &mut Parse) -> crate::Result<Ping> {
+    /// 将帧解码为ping命令
+    pub(crate) fn decode_ping_from_frame(parse: &mut Parse) -> crate::Result<Ping> {
         match parse.next_bytes() {
             Ok(msg) => Ok(Ping::new(Some(msg))),
             Err(ParseError::EndOfStream) => Ok(Ping::default()),
             Err(err) => Err(err.into()),
         }
+    }
+
+    /// # code_ping_into_frame() 函数
+    ///
+    /// 将ping命令编码为帧
+    pub(crate) fn code_ping_into_frame(self) -> Frame {
+        let mut frame: Frame = Frame::array();
+        frame.push_bulk(Bytes::from("ping".as_bytes()));
+        if let Some(msg) = self.msg {
+            frame.push_bulk(msg);
+        }
+        frame
     }
 
     /// # apply() 函数
@@ -53,19 +61,5 @@ impl Ping {
         connection.write_frame(&response).await?;
 
         Ok(())
-    }
-
-    /// # into_frame() 函数
-    ///
-    /// 在客户端中使用，用于将Ping命令编码到为一个数据帧发送到服务器
-    pub(crate) fn into_frame(self) -> Frame {
-        let mut frame = Frame::array();
-        frame.push_bulk(Bytes::from("ping".as_bytes()));
-
-        if let Some(msg) = self.msg {
-            frame.push_bulk(msg);
-        }
-
-        frame
     }
 }

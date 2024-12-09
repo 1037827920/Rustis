@@ -232,7 +232,7 @@ mod tests {
         assert_eq!(buf, b"12345\r\n");
 
         // 等待服务器任务结束
-        server.await?;
+        let _ = server.await?;
 
         Ok(())
     }
@@ -274,7 +274,7 @@ mod tests {
         assert_eq!(buf, expected);
 
         // 等待服务器任务结束
-        server.await?;
+        let _ = server.await?;
 
         Ok(())
     }
@@ -287,7 +287,7 @@ mod tests {
 
         // 创建一个任务来接受连接
         let server = tokio::spawn(async move {
-            let (mut server_stream, _) = listener.accept().await.unwrap();
+            let (server_stream, _) = listener.accept().await.unwrap();
             let mut connection = Connection::new(server_stream);
 
             // 服务器写入不同类型的帧
@@ -341,7 +341,7 @@ mod tests {
         }
 
         // 等待服务器任务结束
-        server.await?;
+        let _ = server.await?;
 
         Ok(())
     }
