@@ -1,5 +1,6 @@
 use rustis::{client::Client, server};
 use std::net::SocketAddr;
+use std::time::Duration;
 use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
 
@@ -45,6 +46,24 @@ async fn key_value_get_set() {
 
     let value = client.get("hello").await.unwrap().unwrap();
     assert_eq!(b"rustis", &value[..])
+}
+
+/// 测试有过期的GET SET
+#[tokio::test]
+async fn key_value_timeout() {
+    // 暂停tokio内部时间的流逝
+    tokio::time::pause();
+
+    let (addr, _) = start_server().await;
+
+    let mut client = Client::connect(addr).await.unwrap();
+    client.set_with_expires("hello", "rustis".into(), Duration::from_secs(1)).await.unwrap();
+
+    // 等待1秒
+    tokio::time::sleep(Duration::from_secs(1)).await;
+
+    let value = client.get("hello").await.unwrap();
+    assert!(value.is_none())
 }
 
 /// 测试一个简单的PUBLISH SUBSCRIBE

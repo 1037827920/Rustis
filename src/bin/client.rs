@@ -129,7 +129,7 @@ async fn main() -> rustis::Result<()> {
                     };
                 }
                 Err(e) => {
-                    println!("解析命令错误: {}", e);
+                    println!("Failed to parse command: {}", e);
                 }
             }
         } else {

@@ -1,6 +1,6 @@
 //! Unknown命令, 用于处理未知的命令
 
-use tracing::debug;
+use tracing::{debug, instrument};
 
 use crate::networking::{connection::Connection, frame::Frame};
 
@@ -29,8 +29,9 @@ impl Unknown {
     /// # apply() 函数
     ///
     /// 应用命令，响应客户端指示命令不可识别
+    #[instrument(skip(self, connection))]
     pub(crate) async fn apply(&self, connection: &mut Connection) -> crate::Result<()> {
-        let response = Frame::Error(format!("未知命令: {}", self.command_name));
+        let response = Frame::Error(format!("ERR unknown command '{}'", self.command_name));
 
         // ?将使用Debug trait来格式化值，而不是使用Display trait
         debug!(?response);
