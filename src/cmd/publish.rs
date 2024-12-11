@@ -52,7 +52,7 @@ impl Publish {
     /// # apply() 函数
     ///
     /// 应用publish命令，并将响应写入到Connection实例
-    #[instrument(skip(self))]
+    #[instrument(skip(self, database, connection))]
     pub(crate) async fn apply(
         self,
         database: &Database,

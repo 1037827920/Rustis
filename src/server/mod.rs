@@ -7,7 +7,7 @@ use tokio::{
     net::TcpListener,
     sync::{broadcast, mpsc},
 };
-use tracing::{error, info};
+use tracing::{error, info, instrument};
 
 use listener::Listener;
 
@@ -16,6 +16,7 @@ use crate::persistence::database::DatabaseWrapper;
 /// # run() 函数
 ///
 /// 运行服务器
+#[instrument(skip(listener, shutdown))]
 pub async fn run(listener: TcpListener, shutdown: impl Future) {
     // 创建一个广播channel，用来通知所有handler关闭信号
     // Receiver在需要时才创建，通过调用Sender的subscriber()方法创建
@@ -37,11 +38,11 @@ pub async fn run(listener: TcpListener, shutdown: impl Future) {
         ret = server.run() => {
             if let Err(err) = ret {
                 // %表示使用Display trait格式化err
-                error!(cause = %err, "接收连接时发生错误");
+                error!(cause = %err, "Server error");
             }
         }
         _ = shutdown => {
-            info!("已经收到关闭信号，正在关闭服务器");
+            info!("Has received shutdown signal");
         }
     }
 

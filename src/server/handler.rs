@@ -51,7 +51,7 @@ impl Handler {
     /// 目前没有实现pipeline，pipeline是指在没有交叉帧的情况下， 每个连接同时处理多个请求的能力，更多信息请访问：https://redis.io/topics/pipelining
     ///
     /// 当接收到关闭信号时，连接被处理，直到它达到安全状态，此时它被终止。
-    #[instrument]
+    #[instrument(skip(self))]
     pub(super) async fn run(&mut self) -> crate::Result<()> {
         // 只要没有收到关闭信号，就一直尝试读取新的请求帧
         while !self.shutdown.is_shutdown() {

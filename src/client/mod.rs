@@ -2,11 +2,11 @@
 
 use async_stream::try_stream;
 use bytes::Bytes;
-use std::{
-    io::{Error, ErrorKind},
+use std::io::{Error, ErrorKind};
+use tokio::{
+    net::{TcpStream, ToSocketAddrs},
     time::Duration,
 };
-use tokio::net::{TcpStream, ToSocketAddrs};
 use tokio_stream::Stream;
 use tracing::{debug, instrument};
 
@@ -16,7 +16,7 @@ use crate::{
         ping::Ping,
         publish::Publish,
         set::Set,
-        subscribe::{Subscribe, Unsubscribe},
+        subscribe::{ExitSubscribe, Subscribe, Unsubscribe},
     },
     networking::{connection::Connection, frame::Frame},
 };
@@ -256,6 +256,7 @@ impl Subscriber {
     ///
     /// 通过async-stream crate将Subscriber转换为Stream。
     /// 将Subcriber转换为Stream，是为了简化异步消息处理
+    #[allow(dead_code)]
     pub(crate) fn into_stream(mut self) -> impl Stream<Item = crate::Result<Message>> {
         try_stream! {
             while let Some(message) = self.next_message().await? {
@@ -275,7 +276,7 @@ impl Subscriber {
     ///
     /// 订阅channels
     #[instrument(skip(self))]
-    pub(crate) async fn subscribe(&mut self, channels: &[String]) -> crate::Result<()> {
+    pub async fn subscribe(&mut self, channels: &[String]) -> crate::Result<()> {
         // 向服务器发出subscribe命令并等待确认
         self.client.subscribe_cmd(channels).await?;
 
@@ -331,6 +332,17 @@ impl Subscriber {
                 frame => return Err(frame.to_error()),
             };
         }
+
+        Ok(())
+    }
+
+    pub async fn exit_subscribe(&mut self) -> crate::Result<()> {
+        // 将exit_subscribe命令编码为帧
+        let frame = ExitSubscribe::new().code_exit_subscribe_into_frame();
+        debug!(request = ?frame);
+
+        // 将帧写入到连接中
+        self.client.connection.write_frame(&frame).await?;
 
         Ok(())
     }

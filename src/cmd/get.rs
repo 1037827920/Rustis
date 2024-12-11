@@ -62,7 +62,7 @@ impl Get {
     /// # apply() 函数
     ///
     /// 应用Get命令，并将响应写入到Connection实例
-    #[instrument(skip(self))]
+    #[instrument(skip(self, db, connection))]
     pub(crate) async fn apply(
         self,
         db: &Database,

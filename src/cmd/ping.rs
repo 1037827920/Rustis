@@ -1,7 +1,7 @@
 //! Ping命令的实现
 
 use bytes::Bytes;
-use tracing::debug;
+use tracing::{debug, instrument};
 
 use crate::networking::{
     connection::Connection,
@@ -49,6 +49,7 @@ impl Ping {
     /// # apply() 函数
     ///
     /// 应用Ping命令，并将响应写入到Connection实例
+    #[instrument(skip(self, connection))]
     pub(crate) async fn apply(self, connection: &mut Connection) -> crate::Result<()> {
         let response = match self.msg {
             None => Frame::Simple("PONG".to_string()),

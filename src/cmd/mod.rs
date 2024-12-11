@@ -14,7 +14,8 @@ use get::Get;
 use ping::Ping;
 use publish::Publish;
 use set::Set;
-use subscribe::{Subscribe, Unsubscribe};
+use subscribe::{ExitSubscribe, Subscribe, Unsubscribe};
+use tracing::instrument;
 use unknown::Unknown;
 
 #[derive(Debug)]
@@ -39,6 +40,10 @@ pub enum Command {
     ///
     /// 退订一个或多个频道
     Unsubscribe(Unsubscribe),
+    /// # ExitSubscribe 命令
+    /// 
+    /// 退出订阅
+    ExitSubscribe(ExitSubscribe),
     /// # Ping 命令
     ///
     /// 检查服务器是否存活
@@ -61,6 +66,7 @@ impl Command {
             Command::Publish(_) => "publish",
             Command::Subscribe(_) => "subscribe",
             Command::Unsubscribe(_) => "unsubscribe",
+            Command::ExitSubscribe(_) => "exitsubscribe",
             Command::Ping(_) => "ping",
         }
     }
@@ -85,6 +91,7 @@ impl Command {
             "unsubscribe" => {
                 Command::Unsubscribe(Unsubscribe::decode_unsubscribe_from_frame(&mut parse)?)
             }
+            "exitsubscribe" => Command::ExitSubscribe(ExitSubscribe::decode_exit_subscribe_from_frame(&mut parse)?),
             _ => {
                 // 如果命令未知，那么返回Unknown命令
                 return Ok(Command::Unknown(Unknown::new(cmd_name)));
@@ -101,6 +108,7 @@ impl Command {
     /// # apply() 函数
     ///
     /// 对特定数据库应用命令，这函数由服务器执行
+    #[instrument(skip(self, database, connection, shutdown))]
     pub(crate) async fn apply(
         self,
         database: &Database,
@@ -115,6 +123,7 @@ impl Command {
             Command::Unsubscribe(_) => Err("Unsubscribe is unsupported in this context".into()),
             Command::Ping(cmd) => cmd.apply(connection).await,
             Command::Unknown(cmd) => cmd.apply(connection).await,
+            Command::ExitSubscribe(_) => Ok(()),
         }
     }
 }

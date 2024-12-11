@@ -8,5 +8,4 @@
 
 **参考：** 
 
-- [redis](https://github.com/redis/redis)
 - [mini-redis](https://github.com/tokio-rs/mini-redis)

@@ -5,6 +5,7 @@ use std::{pin::Pin, vec};
 use bytes::Bytes;
 use tokio::sync::broadcast;
 use tokio_stream::{Stream, StreamExt, StreamMap};
+use tracing::instrument;
 
 use crate::{
     networking::{
@@ -69,6 +70,7 @@ impl Subscribe {
     /// # apply() 函数
     ///
     /// 应用Subscribe命令，并将响应写入到Connection实例
+    #[instrument(skip(self, database, connection, shutdown))]
     pub(crate) async fn apply(
         mut self,
         database: &Database,
@@ -108,7 +110,9 @@ impl Subscribe {
                         None => return Ok(())
                     };
 
-                    handle_command(frame, &mut self.channels, &mut subscriptions, connection).await?;
+                    if !handle_command(frame, &mut self.channels, &mut subscriptions, connection).await? {
+                        return Ok(());
+                    }
                 }
                 _ = shutdown.receiving() => {
                     return Ok(());
@@ -193,7 +197,7 @@ async fn handle_command(
     subscribe_to: &mut Vec<String>,
     subcriptions: &mut StreamMap<String, Messages>,
     connection: &mut Connection,
-) -> crate::Result<()> {
+) -> crate::Result<bool> {
     match Command::decode_cmd_from_frame(frame)? {
         Command::Subscribe(subscribe) => {
             subscribe_to.extend(subscribe.channels.into_iter());
@@ -214,12 +218,16 @@ async fn handle_command(
                 connection.write_frame(&response).await?;
             }
         }
+        Command::ExitSubscribe(_) => {
+            println!("exit subscribe");
+            return Ok(false);
+        }
         command => {
             let cmd = Unknown::new(command.get_name());
             cmd.apply(connection).await?;
         }
     }
-    Ok(())
+    Ok(true)
 }
 
 /// # Unsubscribe 结构体
@@ -266,4 +274,33 @@ impl Unsubscribe {
         }
         frame
     }
+}
+
+#[derive(Debug)]
+pub struct ExitSubscribe;
+
+impl ExitSubscribe {
+    pub(crate) fn new() -> Self {
+        Self
+    }
+
+    /// # decode_exit_subscribe_from_frame() 函数
+    ///
+    /// 将帧解码为exit_subscribe命令
+    #[allow(dead_code)]
+    pub(crate) fn decode_exit_subscribe_from_frame(parse: &mut Parse) -> Result<ExitSubscribe, ParseError> {
+        parse.is_finish()?;
+        Ok(ExitSubscribe::new())
+    }
+
+    /// # code_exit_subscribe_into_frame() 函数
+    ///
+    /// 将exit_subscribe命令编码为帧
+    #[allow(dead_code)]
+    pub(crate) fn code_exit_subscribe_into_frame(self) -> Frame {
+        let mut frame = Frame::array();
+        frame.push_bulk(Bytes::from("exitsubscribe".as_bytes()));
+        frame
+    }
+    
 }

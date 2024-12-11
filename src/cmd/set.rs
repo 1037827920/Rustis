@@ -2,7 +2,7 @@
 
 use bytes::Bytes;
 use tokio::time::Duration;
-use tracing::debug;
+use tracing::{debug, instrument};
 
 use crate::{
     networking::{
@@ -146,6 +146,7 @@ impl Set {
     /// # apply() 函数
     ///
     /// 应用SET命令
+    #[instrument(skip(self, database, connection))]
     pub(crate) async fn apply(
         self,
         database: &Database,

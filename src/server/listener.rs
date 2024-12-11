@@ -5,7 +5,7 @@ use tokio::{
     sync::{broadcast, mpsc},
     time::{self, Duration},
 };
-use tracing::{error, info};
+use tracing::{error, info, instrument};
 
 use crate::{
     networking::connection::Connection, persistence::database::DatabaseWrapper,
@@ -78,8 +78,9 @@ impl Listener {
     /// # 函数功能
     ///
     /// 监听入站连接，对于每个入站连接，生成一个任务来处理连接
+    #[instrument(skip(self))]
     pub(super) async fn run(&mut self) -> crate::Result<()> {
-        info!("接受入站连接...");
+        info!("waiting for incoming connections");
 
         loop {
             // 尝试接受连接，获取socket
