@@ -288,7 +288,9 @@ impl ExitSubscribe {
     ///
     /// 将帧解码为exit_subscribe命令
     #[allow(dead_code)]
-    pub(crate) fn decode_exit_subscribe_from_frame(parse: &mut Parse) -> Result<ExitSubscribe, ParseError> {
+    pub(crate) fn decode_exit_subscribe_from_frame(
+        parse: &mut Parse,
+    ) -> Result<ExitSubscribe, ParseError> {
         parse.is_finish()?;
         Ok(ExitSubscribe::new())
     }
@@ -302,5 +304,4 @@ impl ExitSubscribe {
         frame.push_bulk(Bytes::from("exitsubscribe".as_bytes()));
         frame
     }
-    
 }

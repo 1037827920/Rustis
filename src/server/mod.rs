@@ -7,7 +7,7 @@ use tokio::{
     net::TcpListener,
     sync::{broadcast, mpsc},
 };
-use tracing::{error, info, instrument};
+use tracing::{debug, error, info, instrument};
 
 use listener::Listener;
 
@@ -45,6 +45,10 @@ pub async fn run(listener: TcpListener, shutdown: impl Future) {
             info!("Has received shutdown signal");
         }
     }
+
+    // 关机前进行一次RDB快照
+    debug!("Save to RDB before shutdown");
+    server.save_rdb().expect("Failed to save RDB");
 
     // 通过解构赋值从server中取出shutdown_tx, shutdown_finish_tx
     let Listener {

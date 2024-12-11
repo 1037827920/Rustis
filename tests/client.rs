@@ -5,7 +5,7 @@ use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
 
 /// # start_server() 函数
-/// 
+///
 /// 启动一个服务器实例，返回服务器的地址和一个JoinHandle
 async fn start_server() -> (SocketAddr, JoinHandle<()>) {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -57,7 +57,10 @@ async fn key_value_timeout() {
     let (addr, _) = start_server().await;
 
     let mut client = Client::connect(addr).await.unwrap();
-    client.set_with_expires("hello", "rustis".into(), Duration::from_secs(1)).await.unwrap();
+    client
+        .set_with_expires("hello", "rustis".into(), Duration::from_secs(1))
+        .await
+        .unwrap();
 
     // 等待1秒
     tokio::time::sleep(Duration::from_secs(1)).await;

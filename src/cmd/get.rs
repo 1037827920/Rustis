@@ -50,14 +50,14 @@ impl Get {
     }
 
     /// # code_get_into_frame() 函数
-    /// 
+    ///
     /// 将get命令编码为帧
     pub(crate) fn code_get_into_frame(self) -> Frame {
         let mut frame = Frame::array();
         frame.push_bulk(Bytes::from("get".as_bytes()));
         frame.push_bulk(Bytes::from(self.key.into_bytes()));
         frame
-    } 
+    }
 
     /// # apply() 函数
     ///

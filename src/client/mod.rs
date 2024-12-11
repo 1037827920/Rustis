@@ -15,6 +15,7 @@ use crate::{
         get::Get,
         ping::Ping,
         publish::Publish,
+        save::Save,
         set::Set,
         subscribe::{ExitSubscribe, Subscribe, Unsubscribe},
     },
@@ -159,7 +160,7 @@ impl Client {
 
         // 读取服务器的响应
         match self.read_response().await? {
-            Frame::Integer(response) => Ok(response as u64),
+            Frame::Integer(response) => Ok(response),
             frame => Err(frame.to_error()),
         }
     }
@@ -199,6 +200,25 @@ impl Client {
         }
 
         Ok(())
+    }
+
+    /// # save() 函数
+    ///
+    /// 向服务器编码并发送save命令，进行一次RDB快照
+    #[instrument(skip(self))]
+    pub async fn save(&mut self) -> crate::Result<()> {
+        // 将save命令编码为数据库帧，方便传输到服务器
+        let frame = Save::new().code_save_into_frame();
+        debug!(request = ?frame);
+
+        // 将帧写入到连接中
+        self.connection.write_frame(&frame).await?;
+
+        // 读取服务器的响应
+        match self.read_response().await? {
+            Frame::Simple(response) if response.to_uppercase() == "OK" => Ok(()),
+            frame => Err(frame.to_error()),
+        }
     }
 }
 

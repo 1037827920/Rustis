@@ -225,6 +225,11 @@ async fn main() -> rustis::Result<()> {
                                     // 在客户端模式下，取消订阅是不支持的
                                     println!("\rUnsubscribe is unsupported in client mode. channels: {:?}", channels);
                                 }
+                                Command::Save {} => {
+                                    client.save().await?;
+                                    // \r打断前面的>输出
+                                    println!("\rSave Ok");
+                                }
                             };
                         }
                         Err(e) => {
@@ -273,6 +278,7 @@ enum Command {
     Unsubscribe {
         channels: Vec<String>,
     },
+    Save {},
 }
 
 #[derive(Debug, Clone)]
@@ -350,6 +356,7 @@ fn parse_command(input: &str) -> Result<Command, String> {
                 channels: parts[1..].iter().map(|&s| s.to_string()).collect(),
             })
         }
+        "save" => Ok(Command::Save {}),
         _ => Err(format!("\rUnknown command: {}", parts[0])),
     }
 }

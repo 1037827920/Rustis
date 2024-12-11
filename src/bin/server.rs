@@ -23,13 +23,10 @@ async fn main() -> rustis::Result<()> {
         .compact();
 
     // 初始化全局subscriber
-    tracing_subscriber::registry()
-        .with(file_layer)
-        .init();
+    tracing_subscriber::registry().with(file_layer).init();
 
     // 创建一个root span
     let main_span = span!(Level::DEBUG, "server-main");
-
 
     let cli = Cli::parse();
     let port = cli.port.unwrap_or(DEFAULT_PORT);

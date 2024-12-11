@@ -1,6 +1,7 @@
 pub mod get;
 pub mod ping;
 pub mod publish;
+pub mod save;
 pub mod set;
 pub mod subscribe;
 mod unknown;
@@ -13,6 +14,7 @@ use crate::{
 use get::Get;
 use ping::Ping;
 use publish::Publish;
+use save::Save;
 use set::Set;
 use subscribe::{ExitSubscribe, Subscribe, Unsubscribe};
 use tracing::instrument;
@@ -41,13 +43,17 @@ pub enum Command {
     /// 退订一个或多个频道
     Unsubscribe(Unsubscribe),
     /// # ExitSubscribe 命令
-    /// 
+    ///
     /// 退出订阅
     ExitSubscribe(ExitSubscribe),
     /// # Ping 命令
     ///
     /// 检查服务器是否存活
     Ping(Ping),
+    /// # Save 命令
+    ///
+    /// 保存数据库到RDB文件
+    Save(Save),
     /// # Unknown命令
     ///
     /// 未知命令
@@ -68,6 +74,7 @@ impl Command {
             Command::Unsubscribe(_) => "unsubscribe",
             Command::ExitSubscribe(_) => "exitsubscribe",
             Command::Ping(_) => "ping",
+            Command::Save(_) => "save",
         }
     }
 
@@ -91,7 +98,10 @@ impl Command {
             "unsubscribe" => {
                 Command::Unsubscribe(Unsubscribe::decode_unsubscribe_from_frame(&mut parse)?)
             }
-            "exitsubscribe" => Command::ExitSubscribe(ExitSubscribe::decode_exit_subscribe_from_frame(&mut parse)?),
+            "exitsubscribe" => {
+                Command::ExitSubscribe(ExitSubscribe::decode_exit_subscribe_from_frame(&mut parse)?)
+            }
+            "save" => Command::Save(Save::decode_save_from_frame()?),
             _ => {
                 // 如果命令未知，那么返回Unknown命令
                 return Ok(Command::Unknown(Unknown::new(cmd_name)));
@@ -116,14 +126,15 @@ impl Command {
         shutdown: &mut Shutdown,
     ) -> crate::Result<()> {
         match self {
-            Command::Set(cmd) => cmd.apply(&database, connection).await,
-            Command::Get(cmd) => cmd.apply(&database, connection).await,
-            Command::Publish(cmd) => cmd.apply(&database, connection).await,
-            Command::Subscribe(cmd) => cmd.apply(&database, connection, shutdown).await,
+            Command::Set(cmd) => cmd.apply(database, connection).await,
+            Command::Get(cmd) => cmd.apply(database, connection).await,
+            Command::Publish(cmd) => cmd.apply(database, connection).await,
+            Command::Subscribe(cmd) => cmd.apply(database, connection, shutdown).await,
             Command::Unsubscribe(_) => Err("Unsubscribe is unsupported in this context".into()),
             Command::Ping(cmd) => cmd.apply(connection).await,
             Command::Unknown(cmd) => cmd.apply(connection).await,
             Command::ExitSubscribe(_) => Ok(()),
+            Command::Save(cmd) => cmd.apply(database, connection).await,
         }
     }
 }

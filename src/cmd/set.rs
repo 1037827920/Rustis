@@ -6,7 +6,9 @@ use tracing::{debug, instrument};
 
 use crate::{
     networking::{
-        connection::Connection, frame::Frame, parse::{Parse, ParseError}
+        connection::Connection,
+        frame::Frame,
+        parse::{Parse, ParseError},
     },
     persistence::database::Database,
 };
@@ -125,7 +127,7 @@ impl Set {
     }
 
     /// # code_set_into_frame() 函数
-    /// 
+    ///
     /// 将set命令编码为帧
     pub(crate) fn code_set_into_frame(self) -> Frame {
         let mut frame = Frame::array();

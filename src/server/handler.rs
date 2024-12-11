@@ -77,7 +77,7 @@ impl Handler {
             cmd.apply(&self.database, &mut self.connection, &mut self.shutdown)
                 .await?;
         }
-
+        // 正常收到信号是不会走到这里的
         Ok(())
     }
 }

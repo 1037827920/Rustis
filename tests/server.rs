@@ -229,7 +229,7 @@ async fn pub_sub() {
 #[tokio::test]
 async fn manage_subscription() {
     let addr = start_server().await;
-    
+
     // 发布者
     let mut publisher = TcpStream::connect(addr).await.unwrap();
 

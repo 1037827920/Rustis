@@ -4,7 +4,11 @@ use bincode;
 use bytes::Bytes;
 use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};
 use std::{
-    collections::{BTreeSet, HashMap}, fs::File, io::Read, sync::{Arc, Mutex}, time::{SystemTime, UNIX_EPOCH}
+    collections::{BTreeSet, HashMap},
+    fs::File,
+    io::Read,
+    sync::{Arc, Mutex},
+    time::{SystemTime, UNIX_EPOCH},
 };
 use tokio::{
     sync::{broadcast, Notify},
@@ -18,15 +22,23 @@ use tracing::debug;
 /// 当DatabaseWrapper实例被销毁时，会自动关闭Database实例
 /// 为啥不直接为Database实现Drop traitn呢？因为Database能够在多线程中被共享（通过Arc）
 /// 如果这样操作了，那可能当一个线程的Database实例被销毁时，其他线程还在使用这个实例，这样就会出现问题
+#[derive(Debug)]
 pub(crate) struct DatabaseWrapper {
     database: Database,
 }
 
 impl DatabaseWrapper {
-    pub(crate) fn new() -> Self {
-        Self {
-            database: Database::new(),
-        }
+    pub(crate) fn new() -> DatabaseWrapper {
+        let mut database = Database::new();
+
+        // 加载RDB文件
+        database = if let Ok(db) = Database::load_from_rdb("rustis.rdb") {
+            db
+        } else {
+            database
+        };
+
+        DatabaseWrapper { database }
     }
 
     /// # database() 函数
@@ -189,7 +201,7 @@ impl Database {
         self.shared.notify_background_task.notify_one();
     }
 
-    pub fn save_to_rdb(&self, file_path: &str) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn save_to_rdb(&self, file_path: &str) -> crate::Result<()> {
         let state = self.shared.state.lock().unwrap();
 
         let file = File::create(file_path)?;
@@ -198,22 +210,17 @@ impl Database {
         Ok(())
     }
 
-    pub fn load_from_rdb(file_path: &str) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn load_from_rdb(file_path: &str) -> crate::Result<Database> {
         let mut file = File::open(file_path)?;
         let mut buffer = Vec::new();
         file.read_to_end(&mut buffer)?;
         let data: HashMap<String, Entry> = bincode::deserialize(&buffer)?;
 
-        Ok(Self { 
+        Ok(Database {
             shared: Arc::new(Shared::new(
-                Mutex::new(State::new(
-                    data,
-                    HashMap::new(),
-                    BTreeSet::new(),
-                    false,
-                )),
+                Mutex::new(State::new(data, HashMap::new(), BTreeSet::new(), false)),
                 Notify::new(),
-            ))
+            )),
         })
     }
 }
@@ -378,7 +385,10 @@ async fn clean_expired_keys(shared: Arc<Shared>) {
         // 如果存在过期的键，则清除，否则继续等待通知
         if let Some(when) = shared.clean_expired_keys() {
             // 将 u64 转换为 Instant
-            let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+            let now = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs();
             let duration_until_expiration = when.saturating_sub(now);
             let when_instant = Instant::now() + Duration::from_secs(duration_until_expiration);
 

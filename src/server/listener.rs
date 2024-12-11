@@ -15,6 +15,7 @@ use crate::{
 use super::handler::Handler;
 
 /// 监听来自客户端连接
+#[derive(Debug)]
 pub(super) struct Listener {
     /// Database实例的包装器，是为了在实例被删除时，通过后天清除任务发出关闭的信号，允许有序地清理database
     database_wrapper: DatabaseWrapper,
@@ -101,5 +102,9 @@ impl Listener {
                 }
             });
         }
+    }
+
+    pub(crate) fn save_rdb(&self) -> crate::Result<()> {
+        self.database_wrapper.database().save_to_rdb("rustis.rdb")
     }
 }
