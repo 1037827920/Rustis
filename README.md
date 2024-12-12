@@ -334,3 +334,26 @@ cargo run --bin client -- --hostname 127.0.0.1 --port 6379
 # 参考
 
 - [mini-redis](https://github.com/tokio-rs/mini-redis)
+
+# 代码量统计
+
+Date : 2024-12-12 19:27:25
+
+Total : 23 files,  2551 codes, 888 comments, 549 blanks, all 3988 lines
+
+## Languages
+| language | files | code | comment | blank | total |
+| :--- | ---: | ---: | ---: | ---: | ---: |
+| Rust | 23 | 2,551 | 888 | 549 | 3,988 |
+
+## Directories
+| path | files | code | comment | blank | total |
+| :--- | ---: | ---: | ---: | ---: | ---: |
+| . | 23 | 2,551 | 888 | 549 | 3,988 |
+| . (Files) | 1 | 8 | 0 | 3 | 11 |
+| bin | 2 | 527 | 63 | 59 | 649 |
+| client | 1 | 399 | 143 | 96 | 638 |
+| cmd | 9 | 609 | 273 | 137 | 1,019 |
+| networking | 4 | 503 | 204 | 123 | 830 |
+| persistence | 2 | 322 | 128 | 86 | 536 |
+| server | 4 | 183 | 77 | 45 | 305 |
