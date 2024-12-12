@@ -10,6 +10,10 @@ use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
 async fn main() -> rustis::Result<()> {
+    // 如果不存在logs文件夹，则创建
+    if !std::path::Path::new("logs").exists() {
+        std::fs::create_dir("logs").expect("无法创建logs文件夹");
+    }
     // 输出到文件中
     let file = File::create("logs/server.log").expect("无法创建日志文件");
     let (non_blocking_appender, _guard) = tracing_appender::non_blocking(file);
