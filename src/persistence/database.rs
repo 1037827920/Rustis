@@ -1,20 +1,19 @@
 //! 实现Db结构体
 
-use bincode;
+use bincode::{self};
 use bytes::Bytes;
 use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};
 use std::{
     collections::{BTreeSet, HashMap},
     fs::File,
-    io::Read,
+    io::{ErrorKind, Read},
     sync::{Arc, Mutex},
-    time::{SystemTime, UNIX_EPOCH},
 };
 use tokio::{
     sync::{broadcast, Notify},
     time::{self, Duration, Instant},
 };
-use tracing::debug;
+use tracing::instrument;
 
 /// # DatabaseWrapper 结构体
 ///
@@ -29,14 +28,12 @@ pub(crate) struct DatabaseWrapper {
 
 impl DatabaseWrapper {
     pub(crate) fn new() -> DatabaseWrapper {
-        let mut database = Database::new();
+        let database = Database::new();
 
         // 加载RDB文件
-        database = if let Ok(db) = Database::load_from_rdb("rustis.rdb") {
-            db
-        } else {
-            database
-        };
+        database
+            .load_from_rdb("rustis.rdb")
+            .expect("Failed to load RDB and the reason is not no such file");
 
         DatabaseWrapper { database }
     }
@@ -96,6 +93,7 @@ impl Database {
     /// # set() 函数
     ///
     /// 设置一个键的值
+    #[instrument(skip(self, key, value, expire))]
     pub(crate) fn set(&self, key: String, value: Bytes, expire: Option<Duration>) {
         // 获取state锁
         let mut state = self.shared.state.lock().unwrap();
@@ -104,12 +102,7 @@ impl Database {
         let mut notify = false;
 
         let expire_at = expire.map(|duration| {
-            // 将当前时间转换为UNIX时间戳
-            let now = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_secs();
-            let when = now + duration.as_secs();
+            let when = Instant::now() + duration;
 
             notify = state
                 .next_expiration()
@@ -201,6 +194,9 @@ impl Database {
         self.shared.notify_background_task.notify_one();
     }
 
+    /// # save_to_rdb() 函数
+    ///
+    /// 将数据库的数据保存到RDB文件（目前只实现了键值的保存）
     pub fn save_to_rdb(&self, file_path: &str) -> crate::Result<()> {
         let state = self.shared.state.lock().unwrap();
 
@@ -210,18 +206,27 @@ impl Database {
         Ok(())
     }
 
-    pub fn load_from_rdb(file_path: &str) -> crate::Result<Database> {
-        let mut file = File::open(file_path)?;
+    /// # load_from_rdb() 函数
+    ///
+    /// 从RDB文件加载数据库数据（目前只实现了键值的加载）
+    pub fn load_from_rdb(&self, file_path: &str) -> crate::Result<()> {
+        let mut file = match File::open(file_path) {
+            Ok(f) => f,
+            Err(ref e) if e.kind() == ErrorKind::NotFound => {
+                // 文件不存在，直接返回 Ok(())
+                return Ok(());
+            }
+            Err(e) => return Err(e.into()),
+        };
         let mut buffer = Vec::new();
         file.read_to_end(&mut buffer)?;
         let data: HashMap<String, Entry> = bincode::deserialize(&buffer)?;
 
-        Ok(Database {
-            shared: Arc::new(Shared::new(
-                Mutex::new(State::new(data, HashMap::new(), BTreeSet::new(), false)),
-                Notify::new(),
-            )),
-        })
+        let mut state = self.shared.state.lock().unwrap();
+
+        state.entries = data;
+
+        Ok(())
     }
 }
 
@@ -244,7 +249,7 @@ impl Shared {
     /// clean_expired_keys() 函数
     ///
     /// 清除所有过期的键并返回下一个密钥到期的instant，后台任务将一直休眠到这个时刻
-    fn clean_expired_keys(&self) -> Option<u64> {
+    fn clean_expired_keys(&self) -> Option<Instant> {
         // 获取state锁
         let mut state = self.state.lock().unwrap();
 
@@ -258,10 +263,7 @@ impl Shared {
         let state = &mut *state;
 
         // 获取当前时间
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
+        let now = Instant::now();
 
         // 从expirations中找到所有已经过期的键
         while let Some(&(when, ref key)) = state.expirations.iter().next() {
@@ -293,7 +295,7 @@ struct State {
     /// 发布/订阅的键空间，redis中为其单独使用一个键值空间
     pub_sub: HashMap<String, broadcast::Sender<Bytes>>,
     /// 维护keys的过期时间
-    expirations: BTreeSet<(u64, String)>,
+    expirations: BTreeSet<(Instant, String)>,
     /// db实例的开启/关闭状态
     shutdown: bool,
 }
@@ -302,7 +304,7 @@ impl State {
     fn new(
         entries: HashMap<String, Entry>,
         pub_sub: HashMap<String, broadcast::Sender<Bytes>>,
-        expirations: BTreeSet<(u64, String)>,
+        expirations: BTreeSet<(Instant, String)>,
         shutdown: bool,
     ) -> Self {
         Self {
@@ -316,7 +318,7 @@ impl State {
     /// next_expiration() 函数
     ///
     /// 返回下一个密钥到期的时间
-    fn next_expiration(&self) -> Option<u64> {
+    fn next_expiration(&self) -> Option<Instant> {
         self.expirations
             .iter()
             .next()
@@ -328,12 +330,12 @@ impl State {
 struct Entry {
     /// 存储数据
     data: Bytes,
-    /// 数据的过期时间，使用UNIX时间戳（自1970年1月1日以来的秒数）表示
-    expires_at: Option<u64>,
+    /// 数据的过期时间
+    expires_at: Option<Instant>,
 }
 
 impl Entry {
-    fn new(data: Bytes, expires_at: Option<u64>) -> Self {
+    fn new(data: Bytes, expires_at: Option<Instant>) -> Self {
         Self { data, expires_at }
     }
 }
@@ -346,7 +348,8 @@ impl Serialize for Entry {
     {
         // 先将Bytes类型转换为Vec<u8>类型（可序列化）
         let data = self.data.clone().to_vec();
-        let expires_at = self.expires_at;
+        // 将Intant类型转换为u64类型（可序列化）
+        let expires_at = self.expires_at.map(|instant| instant.elapsed().as_secs());
         let mut state = serializer.serialize_struct("Entry", 2)?;
         state.serialize_field("data", &data)?;
         state.serialize_field("expires_at", &expires_at)?;
@@ -365,11 +368,17 @@ impl<'de> Deserialize<'de> for Entry {
             data: Vec<u8>,
             expires_at: Option<u64>,
         }
-
+        // 反序列化EntryData
         let entry_data = EntryData::deserialize(deserializer)?;
+        let expire_at_instant = if let Some(expires_at) = entry_data.expires_at {
+            Some(Instant::now() + Duration::from_secs(expires_at))
+        } else {
+            None
+        };
+
         Ok(Self {
             data: Bytes::from(entry_data.data),
-            expires_at: entry_data.expires_at,
+            expires_at: expire_at_instant,
         })
     }
 }
@@ -384,27 +393,17 @@ async fn clean_expired_keys(shared: Arc<Shared>) {
     while !shared.is_shutdown() {
         // 如果存在过期的键，则清除，否则继续等待通知
         if let Some(when) = shared.clean_expired_keys() {
-            // 将 u64 转换为 Instant
-            let now = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_secs();
-            let duration_until_expiration = when.saturating_sub(now);
-            let when_instant = Instant::now() + Duration::from_secs(duration_until_expiration);
-
             // 等待直到下一个密钥过期或等待通知
             tokio::select! {
-                _ = time::sleep_until(when_instant) => {},
+                _ = time::sleep_until(when) => {},
                 // 如果收到通知，那么它必须重新加载状态，因为新密钥被设置为提前过期
-                _ = shared.notify_background_task.notified() => {},
+                _ = shared.notify_background_task.notified() => {}
             }
         } else {
             // 这里没有过期的键，等待通知
             shared.notify_background_task.notified().await;
         }
     }
-
-    debug!("清除过期键的后台任务已经被关闭");
 }
 
 #[cfg(test)]
@@ -490,8 +489,11 @@ mod tests {
         let file_path = "test.rdb";
         db.save_to_rdb(file_path).expect("Failed to save RDB");
 
+        // 保存加载数据前的db
+        let loaded_db = db.clone();
+
         // 从rdb加载
-        let loaded_db = Database::load_from_rdb(file_path).expect("Failed to load RDB");
+        db.load_from_rdb(file_path).expect("Failed to load RDB");
 
         // 校验数据
         assert_eq!(db.get("test_key1"), loaded_db.get("test_key1"));

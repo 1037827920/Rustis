@@ -11,7 +11,7 @@ use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt};
 #[tokio::main]
 async fn main() -> rustis::Result<()> {
     // 输出到文件中
-    let file = File::create("logs/app.log").expect("无法创建日志文件");
+    let file = File::create("logs/server.log").expect("无法创建日志文件");
     let (non_blocking_appender, _guard) = tracing_appender::non_blocking(file);
     let file_layer = fmt::layer()
         .with_timer(fmt::time::UtcTime::rfc_3339()) // 使用 RFC 3339 格式的 UTC 时间

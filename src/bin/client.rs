@@ -7,13 +7,13 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode},
 };
 use rustis::{client::Client, DEFAULT_PORT};
+use tracing::{span, Level};
+use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt};
 use std::{
-    io::{stdout, Write},
-    str,
-    sync::{
+    fs::File, io::{stdout, Write}, str, sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
-    },
+    }
 };
 use tokio::{
     sync::{broadcast, mpsc, Mutex},
@@ -32,8 +32,23 @@ struct Cli {
 
 #[tokio::main]
 async fn main() -> rustis::Result<()> {
-    // 初始化日志系统
-    set_up_subcriber()?;
+    // 输出到文件中
+    let file = File::create("logs/client.log").expect("无法创建日志文件");
+    let (non_blocking_appender, _guard) = tracing_appender::non_blocking(file);
+    let file_layer = fmt::layer()
+        .with_timer(fmt::time::UtcTime::rfc_3339()) // 使用 RFC 3339 格式的 UTC 时间
+        .with_target(true) // 显示日志目标
+        .with_level(true) // 显示日志级别
+        .with_line_number(true) // 显示行号
+        .with_ansi(false)
+        .with_writer(non_blocking_appender)
+        .compact();
+
+    // 初始化全局subscriber
+    tracing_subscriber::registry().with(file_layer).init();
+
+    // 创建一个root span
+    let main_span = span!(Level::DEBUG, "client-main");
 
     // 解析命令行参数
     let cli = Cli::parse();
@@ -80,7 +95,8 @@ async fn main() -> rustis::Result<()> {
         }
     });
 
-    println!("Rustis client has been started");
+    tracing::event!(parent: &main_span, Level::DEBUG, "Rustis client has been started");
+    println!("\rRustis client has been started");
 
     loop {
         tokio::select! {
@@ -121,9 +137,9 @@ async fn main() -> rustis::Result<()> {
                                 Command::Ping { msg } => {
                                     let value = client.ping(msg).await?;
                                     if let Ok(string) = str::from_utf8(&value) {
-                                        println!("\"{}\"", string);
+                                        println!("\r\"{}\"", string);
                                     } else {
-                                        println!("{:?}", value);
+                                        println!("\r{:?}", value);
                                     }
                                 }
                                 Command::Publish { channel, message } => {
@@ -248,10 +264,6 @@ async fn main() -> rustis::Result<()> {
     disable_raw_mode()?;
 
     Ok(())
-}
-
-fn set_up_subcriber() -> rustis::Result<()> {
-    tracing_subscriber::fmt::try_init()
 }
 
 #[derive(Debug)]
