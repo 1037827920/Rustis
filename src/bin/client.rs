@@ -376,6 +376,14 @@ fn parse_command(input: &str) -> Result<Command, String> {
                 channels: parts[1..].iter().map(|&s| s.to_string()).collect(),
             })
         }
+        "unsubscribe" => {
+            if parts.len() < 2 {
+                return Err("\r'unsubscribe' command usage: unsubscribe <channel(s)>".to_string());
+            }
+            Ok(Command::Unsubscribe {
+                channels: parts[1..].iter().map(|&s| s.to_string()).collect(),
+            })
+        }
         "save" => Ok(Command::Save {}),
         "del" => {
             if parts.len() != 2 {
