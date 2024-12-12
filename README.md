@@ -1,3 +1,15 @@
+# 快速开始
+
+运行服务端：
+```bash
+cargo run --bin server -- --port 10000
+```
+
+运行客户端：
+```bash
+cargo run --bin client -- --hostname 127.0.0.1 --port 10000
+```
+
 # 系统设计说明书
 
 ## 项目概述
