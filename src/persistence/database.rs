@@ -242,6 +242,14 @@ impl Database {
         file.read_to_end(&mut buffer)?;
         let data: HashMap<String, Entry> = bincode::deserialize(&buffer)?;
 
+        // 获取当前时间
+        let now = Instant::now();
+        // 过滤掉过期的键
+        let data = data
+            .into_iter()
+            .filter(|(_, entry)| entry.expires_at.map(|when| when > now).unwrap_or(true))
+            .collect();
+
         let mut state = self.shared.state.lock().unwrap();
 
         state.entries = data;
