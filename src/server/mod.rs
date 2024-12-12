@@ -17,7 +17,7 @@ use crate::persistence::database::DatabaseWrapper;
 ///
 /// 运行服务器
 #[instrument(skip(listener, shutdown))]
-pub async fn run(listener: TcpListener, shutdown: impl Future) {
+pub async fn run(listener: TcpListener, shutdown: impl Future, is_load_rdb: bool) {
     // 创建一个广播channel，用来通知所有handler关闭信号
     // Receiver在需要时才创建，通过调用Sender的subscriber()方法创建
     // 当handler收到关闭信号后，会把自己的
@@ -27,7 +27,7 @@ pub async fn run(listener: TcpListener, shutdown: impl Future) {
 
     // 初始化Listener
     let mut server = Listener::new(
-        DatabaseWrapper::new(),
+        DatabaseWrapper::new(is_load_rdb),
         listener,
         shutdown_tx,
         shutdown_finish_tx,

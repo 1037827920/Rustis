@@ -36,7 +36,7 @@ async fn main() -> rustis::Result<()> {
 
     event!(parent: &main_span, Level::DEBUG, "Rustis server has been started on port {port}");
     // 运行服务器
-    run(listener, signal::ctrl_c()).await;
+    run(listener, signal::ctrl_c(), true).await;
 
     Ok(())
 }

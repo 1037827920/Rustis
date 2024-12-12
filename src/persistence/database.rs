@@ -27,13 +27,15 @@ pub(crate) struct DatabaseWrapper {
 }
 
 impl DatabaseWrapper {
-    pub(crate) fn new() -> DatabaseWrapper {
+    pub(crate) fn new(is_load_rdb: bool) -> DatabaseWrapper {
         let database = Database::new();
 
         // 加载RDB文件
-        database
-            .load_from_rdb("rustis.rdb")
-            .expect("Failed to load RDB and the reason is not no such file");
+        if is_load_rdb {
+            database
+                .load_from_rdb("rustis.rdb")
+                .expect("Failed to load RDB and the reason is not no such file");
+        }
 
         DatabaseWrapper { database }
     }
