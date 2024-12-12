@@ -246,6 +246,11 @@ async fn main() -> rustis::Result<()> {
                                     // \r打断前面的>输出
                                     println!("\rSave Ok");
                                 }
+                                Command::Del { key } => {
+                                    client.del(&key).await?;
+                                    // \r打断前面的>输出
+                                    println!("\rDel Ok");
+                                }
                             };
                         }
                         Err(e) => {
@@ -291,6 +296,9 @@ enum Command {
         channels: Vec<String>,
     },
     Save {},
+    Del {
+        key: String,
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -369,6 +377,15 @@ fn parse_command(input: &str) -> Result<Command, String> {
             })
         }
         "save" => Ok(Command::Save {}),
+        "del" => {
+            if parts.len() != 2 {
+                // \r打断前面的>输出
+                return Err("\r'del' command usage: del <key>".to_string());
+            }
+            Ok(Command::Del {
+                key: parts[1].to_string(),
+            })
+        }
         _ => Err(format!("\rUnknown command: {}", parts[0])),
     }
 }

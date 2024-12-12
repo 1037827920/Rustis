@@ -4,6 +4,7 @@ pub mod publish;
 pub mod save;
 pub mod set;
 pub mod subscribe;
+pub mod del;
 mod unknown;
 
 use crate::{
@@ -16,6 +17,7 @@ use ping::Ping;
 use publish::Publish;
 use save::Save;
 use set::Set;
+use del::Del;
 use subscribe::{ExitSubscribe, Subscribe, Unsubscribe};
 use tracing::instrument;
 use unknown::Unknown;
@@ -54,6 +56,10 @@ pub enum Command {
     ///
     /// 保存数据库到RDB文件
     Save(Save),
+    /// # Del 命令
+    /// 
+    /// 删除key
+    Del(Del),
     /// # Unknown命令
     ///
     /// 未知命令
@@ -75,6 +81,7 @@ impl Command {
             Command::ExitSubscribe(_) => "exitsubscribe",
             Command::Ping(_) => "ping",
             Command::Save(_) => "save",
+            Command::Del(_) => "del",
         }
     }
 
@@ -102,6 +109,7 @@ impl Command {
                 Command::ExitSubscribe(ExitSubscribe::decode_exit_subscribe_from_frame(&mut parse)?)
             }
             "save" => Command::Save(Save::decode_save_from_frame()?),
+            "del" => Command::Del(Del::decode_del_from_frame(&mut parse)?),
             _ => {
                 // 如果命令未知，那么返回Unknown命令
                 return Ok(Command::Unknown(Unknown::new(cmd_name)));
@@ -135,6 +143,7 @@ impl Command {
             Command::Unknown(cmd) => cmd.apply(connection).await,
             Command::ExitSubscribe(_) => Ok(()),
             Command::Save(cmd) => cmd.apply(database, connection).await,
+            Command::Del(cmd) => cmd.apply(database, connection).await,
         }
     }
 }

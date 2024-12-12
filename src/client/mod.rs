@@ -12,12 +12,7 @@ use tracing::{debug, instrument};
 
 use crate::{
     cmd::{
-        get::Get,
-        ping::Ping,
-        publish::Publish,
-        save::Save,
-        set::Set,
-        subscribe::{ExitSubscribe, Subscribe, Unsubscribe},
+        del::Del, get::Get, ping::Ping, publish::Publish, save::Save, set::Set, subscribe::{ExitSubscribe, Subscribe, Unsubscribe}
     },
     networking::{connection::Connection, frame::Frame},
 };
@@ -220,7 +215,20 @@ impl Client {
             frame => Err(frame.to_error()),
         }
     }
+
+    pub async fn del(&mut self, key: &str) ->crate::Result<()> {
+        let frame = Del::new(key).code_del_into_frame();
+        debug!(request = ?frame);
+
+        self.connection.write_frame(&frame).await?;
+
+        match self.read_response().await? {
+            Frame::Simple(response) if response.to_uppercase() == "OK" => Ok(()),
+            frame => Err(frame.to_error()),
+        }
+    }
 }
+
 
 /// # Subscriber 结构体
 ///

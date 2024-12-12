@@ -139,6 +139,24 @@ impl Database {
         }
     }
 
+    /// # del() 函数
+    ///
+    /// 删除一个键
+    pub(crate) fn del(&self, key: &str) {
+        // 获取state锁
+        let mut state = self.shared.state.lock().unwrap();
+
+        // 从entries中删除key
+        let entry = state.entries.remove(key);
+
+        // 如果entry存在，那么删除expirations中的过期时间
+        if let Some(entry) = entry {
+            if let Some(when) = entry.expires_at {
+                state.expirations.remove(&(when, key.to_string()));
+            }
+        }
+    }
+
     /// # subscribe() 函数
     ///
     /// 返回一个Receiver，用于接收publish命令广播的值
