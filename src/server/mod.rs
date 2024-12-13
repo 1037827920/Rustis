@@ -15,12 +15,12 @@ use crate::persistence::database::DatabaseWrapper;
 
 /// # run() 函数
 ///
-/// 运行服务器
+/// 运行服务器，暴露给crate外的接口
 #[instrument(skip(listener, shutdown))]
 pub async fn run(listener: TcpListener, shutdown: impl Future, is_load_rdb: bool) {
     // 创建一个广播channel，用来通知所有handler关闭信号
     // Receiver在需要时才创建，通过调用Sender的subscriber()方法创建
-    // 当handler收到关闭信号后，会把自己的
+    // 当handler收到关闭信号后，会把自己的is_shutdown设置为true，退出handle的run循环
     let (shutdown_tx, _) = broadcast::channel(1);
     // 创建一个多生产者单消费者channel, 当所有的生产者drop后，channel就会被关闭，说明所有的handler已经关闭，这时候可以优雅地关闭服务器了
     let (shutdown_finish_tx, mut shutdown_finish_rx) = mpsc::channel(1);
